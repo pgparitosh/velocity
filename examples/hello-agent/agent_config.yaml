@@ -1,0 +1,32 @@
+# Hello Agent Configuration
+# Defines the operational bounds and model preferences for the agent.
+
+agent_id: "hello-agent"
+version: "1.0.0"
+
+# Model Preferences
+model: "gpt-4o-mini"
+max_tokens: 1024
+temperature: 0.7
+
+# Budget Enforcement
+budget:
+  daily_limit_usd: 5.0
+  request_limit_usd: 0.10
+
+# Rate Limiting
+rate_limits:
+  requests_per_minute: 10
+  requests_per_hour: 100
+
+# Security
+security:
+  detect_pii: true
+  block_injection: true
+  mask_output: true
+
+# Memory
+memory:
+  use_short_term: true
+  use_long_term: false
+  use_episodic: false

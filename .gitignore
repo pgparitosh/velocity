@@ -1,0 +1,67 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+dist/
+sdist/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Build and IDE
+build/
+develop-eggs/
+.eggs/
+lib/
+lib64/
+parts/
+var/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Virtual environments
+venv/
+env/
+.env
+.venv
+env.bak/
+venv.bak/
+
+# Environment variables
+.env
+.env.local
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+
+# Logs and Databases
+logs/
+*.log
+*.db
+*.sqlite3
+*.sqlite
+data/
+*.rdb
+*.aof
+
+# Design Docs (Keep md files but ignore drafts if any)
+# !planning/*.md

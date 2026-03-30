@@ -1,23 +1,22 @@
 """
-OpenAI API Provider.
-Wraps the `openai` Python SDK to fulfill the `ILlmProvider` contract.
-Uses explicit keyword arguments to satisfy the SDK's strict overloads.
+Groq API Provider.
+Wraps the `groq` Python SDK to fulfill the `ILlmProvider` contract.
 """
 
 import json
 from collections.abc import AsyncIterator
 from typing import Any
 
-from openai import AsyncOpenAI
+from groq import AsyncGroq
 from openai.types.chat import ChatCompletionMessageParam
 
 from velocity.core.llm_gateway import ILlmProvider, LlmChunk, LlmResponse
 from velocity.services.cost import calculate_cost
 
 
-class OpenAIProvider(ILlmProvider):
+class GroqProvider(ILlmProvider):
     """
-    Adapter bridging platform-neutral semantics to the OpenAI REST API.
+    Adapter bridging platform-neutral semantics to the Groq REST API.
 
     Normalises:
     - System prompt handling (injected as first message)
@@ -26,10 +25,10 @@ class OpenAIProvider(ILlmProvider):
     - Token-level cost attribution via local pricing table
     """
 
-    def __init__(self, api_key: str, models: list[str], base_url: str | None = None) -> None:
-        self._provider_name = "openai"
+    def __init__(self, api_key: str, models: list[str]) -> None:
+        self._provider_name = "groq"
         self._supported_models = models
-        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        self.client = AsyncGroq(api_key=api_key)
 
     @property
     def provider_name(self) -> str:
@@ -42,7 +41,7 @@ class OpenAIProvider(ILlmProvider):
     def _build_messages(
         self, system_prompt: str, messages: list[dict[str, Any]]
     ) -> list[ChatCompletionMessageParam]:
-        """Construct a fully typed OpenAI message list."""
+        """Construct a fully typed Groq message list."""
         result: list[ChatCompletionMessageParam] = []
         if system_prompt:
             # system role is a valid ChatCompletionMessageParam
@@ -76,13 +75,13 @@ class OpenAIProvider(ILlmProvider):
         max_tokens: int,
     ) -> LlmResponse:
         """Execute a blocking (non-streaming) LLM inference call."""
-        oai_messages = self._build_messages(system_prompt, messages)
+        groq_messages = self._build_messages(system_prompt, messages)
         formatted_tools = self._format_tools(tools)
 
         if formatted_tools:
             response = await self.client.chat.completions.create(
                 model=model,
-                messages=oai_messages,
+                messages=groq_messages,
                 max_tokens=max_tokens,
                 tools=formatted_tools,
                 stream=False,
@@ -90,7 +89,7 @@ class OpenAIProvider(ILlmProvider):
         else:
             response = await self.client.chat.completions.create(
                 model=model,
-                messages=oai_messages,
+                messages=groq_messages,
                 max_tokens=max_tokens,
                 stream=False,
             )
@@ -145,12 +144,12 @@ class OpenAIProvider(ILlmProvider):
         max_tokens: int,
     ) -> AsyncIterator[LlmChunk]:
         """Internal async generator for streaming. Uses create(stream=True) to get raw chunks."""
-        oai_messages = self._build_messages(system_prompt, messages)
+        groq_messages = self._build_messages(system_prompt, messages)
 
         # create(stream=True) returns AsyncStream[ChatCompletionChunk], which is directly iterable
         stream = await self.client.chat.completions.create(
             model=model,
-            messages=oai_messages,
+            messages=groq_messages,
             max_tokens=max_tokens,
             stream=True,
         )

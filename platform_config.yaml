@@ -1,0 +1,18 @@
+# Velocity Platform Configuration
+environment: dev
+
+llm:
+  default_provider: groq
+  default_model: openai/gpt-oss-120b
+  providers:
+    groq:
+      api_key_env: GROQ_API_KEY
+      models: [openai/gpt-oss-120b]
+
+infra:
+  cache:
+    backend: memory
+  database:
+    backend: sqlite
+  object_store:
+    backend: local

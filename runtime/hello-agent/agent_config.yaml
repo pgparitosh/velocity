@@ -1,0 +1,32 @@
+# Hello Agent Configuration for Google AI
+# Modified for runtime with Google AI provider.
+
+agent_id: "hello-agent"
+version: "1.0.0"
+
+# Model Preferences
+model: "gemini-1.5-flash"
+max_tokens: 1024
+temperature: 0.7
+
+# Budget Enforcement
+budget:
+  daily_limit_usd: 5.0
+  request_limit_usd: 0.10
+
+# Rate Limiting
+rate_limits:
+  requests_per_minute: 10
+  requests_per_hour: 100
+
+# Security
+security:
+  detect_pii: false  # Disabled for local testing
+  block_injection: true
+  mask_output: false
+
+# Memory
+memory:
+  use_short_term: true
+  use_long_term: false
+  use_episodic: false

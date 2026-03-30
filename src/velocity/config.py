@@ -1,15 +1,17 @@
 """
 Velocity Platform Configuration Loader.
 
-Implements the single source of truth for all environment, 
+Implements the single source of truth for all environment,
 database, caching, and model configurations derived from `platform_config.yaml`.
-Uses Pydantic BaseSettings to seamlessly mix YAML configs with ENV variable overrides 
+Uses Pydantic BaseSettings to seamlessly mix YAML configs with ENV variable overrides
 (e.g., `VELOCITY_INFRA_DATABASE_BACKEND="sqlite"`).
 """
 
+import os
+import yaml
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -59,13 +61,17 @@ class PlatformConfig(BaseSettings):
     Root configuration parsed statically once across the entire node.
     Supports native YAML integration or nested env vars (e.g. VELOCITY_TENANCY_ENABLED).
     """
+
     model_config = SettingsConfigDict(
         env_prefix="VELOCITY_",
         env_nested_delimiter="__",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     environment: Literal["dev", "staging", "production"] = "dev"
-    
+
     tenancy: TenancyConfig = Field(default_factory=TenancyConfig)
     llm: LlmConfig = Field(default_factory=LlmConfig)
     infra: InfraConfig = Field(default_factory=InfraConfig)
@@ -73,9 +79,16 @@ class PlatformConfig(BaseSettings):
 
 _GLOBAL_CONFIG: PlatformConfig | None = None
 
+
 def get_config() -> PlatformConfig:
     """Retrieve the deterministic frozen config singleton for this run context."""
     global _GLOBAL_CONFIG
     if _GLOBAL_CONFIG is None:
-        _GLOBAL_CONFIG = PlatformConfig()
+        try:
+            config_path = os.path.join(os.path.dirname(__file__), "../../platform_config.yaml")
+            with open(config_path) as f:
+                data = yaml.safe_load(f)
+            _GLOBAL_CONFIG = PlatformConfig(**data)
+        except FileNotFoundError:
+            _GLOBAL_CONFIG = PlatformConfig()
     return _GLOBAL_CONFIG

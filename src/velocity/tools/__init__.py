@@ -15,4 +15,6 @@ __all__ = [
     "ToolMetadata",
     "ToolRegistry",
     "generate_json_schema_from_func",
+    # Global tool library — bulk import registers all tools with ToolRegistry
+    "library",
 ]

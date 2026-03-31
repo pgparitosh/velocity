@@ -16,3 +16,9 @@ infra:
     backend: sqlite
   object_store:
     backend: local
+
+# Development Observability
+observability:
+  dev_logging:
+    enabled: true          # Enable dev console logging (default: true in dev environment)
+    verbose: false         # Show detailed inputs/outputs (default: false)

@@ -9,6 +9,7 @@ from typing import Any
 
 from velocity.core.context import AgentContext
 from velocity.observability.metrics import MetricsService
+from velocity.observability.dev import DevObservabilityPlugin
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +18,16 @@ class MetricsMiddleware:
     """
     Wraps AgentEngine execution to emit metrics automatically.
     This avoids polluting the core engine logic with observability boilerplate.
+    Optionally includes dev observability logging for human-readable console output.
     """
 
-    def __init__(self, metrics_service: MetricsService):
+    def __init__(
+        self,
+        metrics_service: MetricsService,
+        dev_observability: DevObservabilityPlugin | None = None,
+    ):
         self.metrics = metrics_service
+        self.dev_observability = dev_observability
 
     async def after_run(self, ctx: AgentContext, error: Exception | None = None) -> None:
         """
@@ -45,7 +52,7 @@ class MetricsMiddleware:
                 agent_id=agent_id,
                 model=call.get("model", "unknown"),
                 input_tokens=call.get("input_tokens", 0),
-                output_tokens=call.get("output_tokens", 0)
+                output_tokens=call.get("output_tokens", 0),
             )
 
         # 4. Tool Metrics
@@ -53,5 +60,9 @@ class MetricsMiddleware:
             self.metrics.record_tool_call(
                 agent_id=agent_id,
                 tool_name=t_call.get("tool_name", "unknown"),
-                success=t_call.get("success", False)
+                success=t_call.get("success", False),
             )
+
+        # 5. Dev Observability (if enabled)
+        if self.dev_observability:
+            await self.dev_observability.after_run(ctx, error)

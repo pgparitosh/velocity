@@ -31,10 +31,14 @@ class AgentEngine:
         llm_gateway: LLMGateway,
         memory_manager: MemoryManager | None = None,
         default_model: str = "gpt-4o",
+        middleware=None,
+        prompt_library=None,
     ):
         self.llm_gateway = llm_gateway
         self.memory_manager = memory_manager
         self.default_model = default_model
+        self.middleware = middleware
+        self.prompt_library = prompt_library
         # Middleware instances (Cost, Audit, Auth) will be injected here during Phase 4.
 
     async def run(
@@ -62,7 +66,25 @@ class AgentEngine:
 
         try:
             # 2. Setup System Instructions & Initial Message Queue
-            prompt_content = agent.system_prompt()
+            prompt_ref = agent.system_prompt()
+
+            # Resolve prompt reference if PromptLibrary is available
+            if self.prompt_library and prompt_ref and "@" in prompt_ref:
+                try:
+                    prompt_content = await self.prompt_library.resolve(
+                        reference=prompt_ref,
+                        variables={
+                            "agent_id": ctx.agent_id,
+                            "agent_version": getattr(agent, "AGENT_VERSION", "1.0.0"),
+                            "request_id": ctx.request_id,
+                            "session_id": ctx.session_id or "new",
+                        },
+                    )
+                except Exception:
+                    # Fallback to raw prompt if resolution fails
+                    prompt_content = prompt_ref
+            else:
+                prompt_content = prompt_ref
 
             # Memory Initialization
             if self.memory_manager:
@@ -145,12 +167,22 @@ class AgentEngine:
             # Phase 4 Preview: Security Layer intercepts 'processed_result' to check for PII
 
             ctx.mark_completed()
+
+            # Call middleware after_run hook
+            if self.middleware:
+                await self.middleware.after_run(ctx, error=None)
+
             return processed_result
 
         except Exception as e:
             # Trap fatal issues, execute agent-specific recovery, bubble the crash upwards
             await agent.on_error(e, ctx)
             ctx.mark_completed()
+
+            # Call middleware after_run hook with error
+            if self.middleware:
+                await self.middleware.after_run(ctx, error=e)
+
             raise e
 
     def _format_tool_calls_for_provider(

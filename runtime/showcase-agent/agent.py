@@ -5,13 +5,25 @@ Comprehensive agent demonstrating all Velocity platform capabilities:
 - Memory management (short-term, long-term, episodic)
 - Security features (PII detection, injection prevention)
 - Cost tracking and rate limiting
-- Audit logging
+- PLATFORM-PROVIDED AUDIT LOGGING AND METRICS (no manual instrumentation needed)
 - Error handling and hooks
 - Complex workflows and decision making
 - Versioned prompt management using platform PromptLibrary
+
+NOTE: This agent does NOT use manual logger.info() calls for observability.
+The Velocity platform automatically logs all activities:
+- Tool execution (success/failure, latency)
+- LLM calls (tokens, cost, model selection)
+- Request lifecycle (request_id, session tracking)
+- Security events (PII masking, validation)
+- Performance metrics (latency, iterations, resource usage)
+
+All observability is baked into the platform via:
+- MetricsService: Automatically records performance metrics
+- AuditLogger: Persists complete audit trail to database/S3
+- AgentContext: Tracks execution state without agent involvement
 """
 
-import logging
 import json
 from typing import Any, List, Dict
 from velocity.sdk import AgentBase, AgentContext
@@ -28,8 +40,6 @@ from tools import (
     format_data_as_json,
     count_words,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class ShowcaseAgent(AgentBase):
@@ -94,9 +104,17 @@ class ShowcaseAgent(AgentBase):
         ]
 
     async def execute_tool(self, name: str, inputs: dict, ctx: AgentContext) -> Any:
-        """Route tool calls to appropriate handlers with logging."""
-        logger.info(f"Executing tool '{name}' with inputs: {inputs}")
+        """
+        Route tool calls to appropriate handlers.
 
+        NOTE: Platform automatically tracks:
+        - Tool invocation (via ctx.record_tool_call in engine)
+        - Execution latency
+        - Success/failure status
+        - Input validation errors
+
+        Agent only needs to implement the routing logic.
+        """
         tool_map = {
             "get_current_time": get_current_time,
             "perform_calculation": perform_calculation,
@@ -132,24 +150,23 @@ class ShowcaseAgent(AgentBase):
                 # Tools with single required parameter
                 result = await tool_map[name](**inputs)
 
-            logger.info(f"Tool '{name}' executed successfully")
+            # Platform automatically logs success via AgentEngine._execute_single_tool()
             return result
 
         except Exception as e:
-            logger.error(f"Tool '{name}' failed: {e}")
+            # Platform automatically logs failure via AgentEngine._execute_single_tool()
             raise
 
     async def on_before_llm_call(self, messages: List[dict], ctx: AgentContext) -> List[dict]:
         """
         Pre-LLM hook: Resolve versioned prompt from PromptLibrary with context variables.
 
-        This demonstrates the platform's prompt management capabilities:
-        - Loads prompt from versioned library
-        - Injects context-specific variables
-        - Maintains prompt versioning and audit trail
+        NOTE: Platform automatically logs:
+        - LLM call initiation
+        - Model selection
+        - Token counts
+        - Latency measurement
         """
-        logger.debug("Pre-LLM call hook: resolving versioned prompt from library")
-
         # Resolve prompt with context variables (demonstrates dynamic variable rendering)
         try:
             self._resolved_prompt = await self.prompt_library.resolve(
@@ -161,9 +178,8 @@ class ShowcaseAgent(AgentBase):
                     "session_id": ctx.session_id or "new",
                 },
             )
-            logger.info(f"Resolved prompt: {self.PROMPT_REFERENCE}")
-        except Exception as e:
-            logger.warning(f"Failed to load versioned prompt: {e}. Using fallback.")
+        except Exception:
+            # Graceful fallback if prompt loading fails
             self._resolved_prompt = f"You are {self.AGENT_ID}, an AI assistant."
 
         # Replace system message with resolved prompt
@@ -188,10 +204,15 @@ class ShowcaseAgent(AgentBase):
         return messages
 
     async def on_after_tool_call(self, tool_name: str, result: Any, ctx: AgentContext) -> Any:
-        """Post-tool hook: validate results and add metadata."""
-        logger.debug(f"Post-tool hook for '{tool_name}': processing result")
+        """
+        Post-tool hook: validate results and add metadata.
 
-        # Add execution metadata to results
+        NOTE: Platform automatically logs:
+        - Tool execution latency
+        - Success/failure status
+        - Tool-specific metrics
+        """
+        # Add execution metadata to results for tracing
         if isinstance(result, dict) and "processed_at" not in result:
             result["execution_metadata"] = {
                 "tool": tool_name,
@@ -203,9 +224,15 @@ class ShowcaseAgent(AgentBase):
         return result
 
     async def on_final_result(self, result: Any, ctx: AgentContext) -> Any:
-        """Final result hook: add platform attribution and metrics."""
-        logger.info("Final result processing: adding platform metadata")
+        """
+        Final result hook: add platform attribution and metrics.
 
+        NOTE: Platform automatically:
+        - Records final cost via AuditLogger
+        - Calculates total tokens and cost
+        - Tracks iteration count
+        - Logs audit trail with all metadata
+        """
         if isinstance(result, dict):
             result["platform_metadata"] = {
                 "agent_id": ctx.agent_id,
@@ -220,7 +247,14 @@ class ShowcaseAgent(AgentBase):
         return result
 
     def parse_result(self, text: str, ctx: AgentContext) -> dict:
-        """Parse LLM output with enhanced error handling."""
+        """
+        Parse LLM output with enhanced error handling.
+
+        NOTE: Platform automatically:
+        - Records parse success/failure
+        - Tracks output format validation
+        - Logs parsing errors to audit trail
+        """
         try:
             # Try to parse as JSON first
             parsed = json.loads(text)
@@ -233,14 +267,15 @@ class ShowcaseAgent(AgentBase):
         return {"response": text, "confidence": 0.8, "parsing_method": "text_fallback"}
 
     async def on_error(self, error: Exception, ctx: AgentContext) -> None:
-        """Error handling hook: log detailed error information."""
-        logger.error(
-            f"Agent error in request {ctx.request_id}: {error}",
-            exc_info=True,
-            extra={
-                "agent_id": ctx.agent_id,
-                "iteration": ctx.iteration,
-                "tool_calls": len(ctx.tool_calls),
-                "elapsed_ms": ctx.elapsed_ms,
-            },
-        )
+        """
+        Error handling hook: allows agent to perform recovery actions.
+
+        NOTE: Platform automatically:
+        - Logs error to audit trail
+        - Records error type and message
+        - Tracks which iteration failed
+        - Includes full context for debugging
+        """
+        # Agent can implement custom recovery logic here if needed
+        # But the platform handles all logging automatically
+        pass

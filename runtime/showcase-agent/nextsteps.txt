@@ -1,0 +1,4 @@
+1. use groq only instead of google ai for now
+2. how about a global tools repo which can be used by all agents. in this case, these tools shoud fall with platform but outside one layer of core platform
+3. these tools can then be re-used by all agents. there should be a away to invoke them and identify them by agents. we should think of architecture of it in depth
+4. Logging should be extensive with input/output token cost, prompt, response, time taken, which agent, which api, user, tenant and what not. full audit trail i am not able to see
